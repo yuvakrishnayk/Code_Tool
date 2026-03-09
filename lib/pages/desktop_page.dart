@@ -60,6 +60,14 @@ class _DesktopPageState extends State<DesktopPage>
   List<Map<String, dynamic>> _userRepos = [];
   bool _isLoadingRepos = false;
 
+  // Public repository lookup variables
+  final TextEditingController _publicRepoUsernameController =
+      TextEditingController();
+  List<Map<String, dynamic>> _publicRepos = [];
+  bool _isLoadingPublicRepos = false;
+  String? _selectedPublicRepo;
+  bool _showPublicRepoDropdown = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +78,7 @@ class _DesktopPageState extends State<DesktopPage>
   void dispose() {
     _repoTabController?.dispose();
     _mobileRepoTabController?.dispose();
+    _publicRepoUsernameController.dispose();
     super.dispose();
   }
 
@@ -775,6 +784,102 @@ class _DesktopPageState extends State<DesktopPage>
     });
   }
 
+  // Fetch public repositories for a given username
+  Future<void> _fetchPublicReposByUsername(String username) async {
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a GitHub username'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoadingPublicRepos = true;
+      _publicRepos = [];
+      _selectedPublicRepo = null;
+    });
+
+    try {
+      final url = Uri.parse(
+        'https://api.github.com/users/$username/repos?per_page=100&sort=updated&type=public',
+      );
+
+      final headers = <String, String>{
+        'Accept': 'application/vnd.github.v3+json',
+        if (_githubToken != null && _githubToken!.isNotEmpty)
+          'Authorization': 'token $_githubToken',
+      };
+
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        if (data.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No public repos found for user: $username'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+
+        setState(() {
+          _publicRepos =
+              data
+                  .map(
+                    (repo) => {
+                      'name': repo['name'],
+                      'full_name': repo['full_name'],
+                      'description': repo['description'] ?? 'No description',
+                      'url': repo['html_url'],
+                      'stars': repo['stargazers_count'] ?? 0,
+                      'language': repo['language'] ?? 'Unknown',
+                    },
+                  )
+                  .toList();
+          _isLoadingPublicRepos = false;
+          _showPublicRepoDropdown = true;
+        });
+      } else if (response.statusCode == 404) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('User "$username" not found on GitHub'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoadingPublicRepos = false;
+        });
+      } else {
+        throw Exception('Failed to fetch repos: ${response.statusCode}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error fetching repos: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        _isLoadingPublicRepos = false;
+      });
+    }
+  }
+
+  // Select a public repo and start analysis
+  void _selectPublicRepository(String repoFullName, String repoUrl) {
+    _repoUrlController.text = repoUrl;
+    setState(() {
+      _selectedPublicRepo = repoFullName;
+      _showPublicRepoDropdown = false;
+    });
+    _processGitRepository();
+  }
+
   void handleCodeReviewTap() {
     setState(() {
       selectedPage = 'CodeReview';
@@ -1269,6 +1374,159 @@ class _DesktopPageState extends State<DesktopPage>
               ),
             ],
           ),
+
+          SizedBox(height: 16),
+
+          // Public Repository Lookup Section (Mobile)
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade800,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.purple.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Search Public Repositories',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _publicRepoUsernameController,
+                  decoration: InputDecoration(
+                    labelText: 'GitHub Username',
+                    labelStyle: TextStyle(color: Colors.white, fontSize: 13),
+                    hintText: 'Enter username',
+                    hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                    filled: true,
+                    fillColor: Colors.grey.shade700,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.person,
+                      color: Colors.grey,
+                      size: 20,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.clear, color: Colors.grey, size: 18),
+                      onPressed: () => _publicRepoUsernameController.clear(),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 13),
+                ),
+                SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.search, size: 18),
+                    label: Text('Search Repos', style: TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple.shade700,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed:
+                        _isLoadingPublicRepos
+                            ? null
+                            : () => _fetchPublicReposByUsername(
+                              _publicRepoUsernameController.text,
+                            ),
+                  ),
+                ),
+                SizedBox(height: 10),
+                // Public Repos List (Mobile)
+                if (_isLoadingPublicRepos)
+                  Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(
+                        Colors.purple.shade300,
+                      ),
+                    ),
+                  )
+                else if (_publicRepos.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Found ${_publicRepos.length} repositor${_publicRepos.length > 1 ? 'ies' : 'y'}',
+                        style: TextStyle(
+                          color: Colors.grey.shade300,
+                          fontSize: 12,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Container(
+                        constraints: BoxConstraints(maxHeight: 250),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade700,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.purple.withOpacity(0.3),
+                          ),
+                        ),
+                        child: ListView.builder(
+                          itemCount: _publicRepos.length,
+                          itemBuilder: (context, index) {
+                            final repo = _publicRepos[index];
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              title: Text(
+                                repo['name'],
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              subtitle: Text(
+                                repo['description'] ?? 'No description',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              trailing: Icon(
+                                Icons.arrow_forward,
+                                color: Colors.purple.shade300,
+                                size: 18,
+                              ),
+                              onTap:
+                                  () => _selectPublicRepository(
+                                    repo['full_name'],
+                                    repo['url'],
+                                  ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                else if (_showPublicRepoDropdown)
+                  Text(
+                    'No repositories found',
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 16),
 
           // User repositories section (when logged in)
           if (_isLoggedInToGitHub && _userRepos.isNotEmpty)
@@ -2099,6 +2357,183 @@ class _DesktopPageState extends State<DesktopPage>
               ),
             ],
           ),
+
+          SizedBox(height: 20),
+
+          // Public Repository Lookup Section
+          Container(
+            padding: EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade800,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.purple.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Search Public Repositories',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _publicRepoUsernameController,
+                        decoration: InputDecoration(
+                          labelText: 'GitHub Username',
+                          labelStyle: TextStyle(color: Colors.white),
+                          hintText: 'Enter username (e.g., flutter)',
+                          hintStyle: TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: Colors.grey.shade700,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          prefixIcon: Icon(Icons.person, color: Colors.grey),
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.clear, color: Colors.grey),
+                            onPressed:
+                                () => _publicRepoUsernameController.clear(),
+                          ),
+                        ),
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      icon: Icon(Icons.search),
+                      label: Text('Search Repos'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple.shade700,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 15,
+                        ),
+                      ),
+                      onPressed:
+                          _isLoadingPublicRepos
+                              ? null
+                              : () => _fetchPublicReposByUsername(
+                                _publicRepoUsernameController.text,
+                              ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12),
+                // Public Repos Dropdown
+                if (_isLoadingPublicRepos)
+                  Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(
+                        Colors.purple.shade300,
+                      ),
+                    ),
+                  )
+                else if (_publicRepos.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Found ${_publicRepos.length} public repositor${_publicRepos.length > 1 ? 'ies' : 'y'}',
+                        style: TextStyle(
+                          color: Colors.grey.shade300,
+                          fontSize: 13,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Container(
+                        constraints: BoxConstraints(maxHeight: 300),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade700,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.purple.withOpacity(0.3),
+                          ),
+                        ),
+                        child: ListView.builder(
+                          itemCount: _publicRepos.length,
+                          itemBuilder: (context, index) {
+                            final repo = _publicRepos[index];
+                            return ListTile(
+                              title: Text(
+                                repo['name'],
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              subtitle: Text(
+                                repo['description'] ?? 'No description',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Colors.grey.shade400),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.star,
+                                    size: 16,
+                                    color: Colors.amber,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    repo['stars'].toString(),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade300,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  if (repo['language'] != null &&
+                                      repo['language'] != 'Unknown')
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.purple.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        repo['language'],
+                                        style: TextStyle(
+                                          color: Colors.purple.shade300,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              onTap:
+                                  () => _selectPublicRepository(
+                                    repo['full_name'],
+                                    repo['url'],
+                                  ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                else if (_showPublicRepoDropdown)
+                  Text(
+                    'No repositories found',
+                    style: TextStyle(color: Colors.grey.shade400),
+                  ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 20),
 
           // User repositories section (when logged in)
           if (_isLoggedInToGitHub && _userRepos.isNotEmpty)
