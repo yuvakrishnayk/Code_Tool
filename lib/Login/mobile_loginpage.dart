@@ -19,7 +19,6 @@ class _MobileLoginPageState extends State<MobileLoginPage>
   bool _obscureText = true;
   bool _isLoading = false;
   late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   // Add hover state variables
   bool _isEmailHovered = false;
@@ -34,12 +33,6 @@ class _MobileLoginPageState extends State<MobileLoginPage>
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Interval(0.4, 1.0, curve: Curves.easeInOut),
-      ),
     );
     _animationController.forward();
   }

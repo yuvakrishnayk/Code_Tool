@@ -21,7 +21,6 @@ class _MobileSignUpPageState extends State<MobileSignUpPage>
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   // Hover state variables
   bool _isFullNameHovered = false;
@@ -38,12 +37,6 @@ class _MobileSignUpPageState extends State<MobileSignUpPage>
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Interval(0.4, 1.0, curve: Curves.easeInOut),
-      ),
     );
     _animationController.forward();
   }
