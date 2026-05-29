@@ -1,3 +1,14 @@
+# ScreenShots
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/9e8c5361-79d8-4537-89a6-91f5985dd517" />
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/f3348e2f-f421-46c3-9259-7e4be7333a0d" />
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/c05d651f-c3ae-467d-9369-7db022127469" />
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/e1906570-1399-4650-8dda-99f78c59da05" />
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/f7499849-e937-426c-a292-6b885157deb8" />
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/864d672f-8b38-42aa-99e3-8075a62072e6" />
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/9dc86bbe-f5f7-44e9-a14d-3e21e84806cb" />
+<img width="320" height="700" alt="image" src="https://github.com/user-attachments/assets/fef0142f-fa75-49ca-b539-bfb18c670df6" />
+
+
 # Atom - AI Code Analyzer and Reviewer
 
 An intelligent development platform that leverages AI to automatically review and debug code. The system boosts development efficiency and provides instant guidance through a conversational AI assistant.
